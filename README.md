@@ -1,20 +1,37 @@
 # Hukuk-Projesi
 
-Türkiye'deki dava dilekçelerini analiz etmek için geliştirilmiş araştırma amaçlı bir yapay zeka prototipi.
+Türkiye'deki dava dilekçelerini **BERT tabanlı yapay zeka** ile analiz eden araştırma prototipi.
 
-## Özellikler
+Bu sürümde ana model: **`dbmdz/bert-base-turkish-cased`**
 
-- Dava metninden temel bölümleri ayıklama (mahkeme başlığı, davacı, davalı, konu, deliller vb.)
-- Dava türü tahmini (kira, alacak, boşanma, velayet, iş, kıdem tazminatı, işe iade, tapu)
-- Mahkeme türü tespiti
-- Özellik çıkarımı:
+## Neler yapar?
+
+- Dava metninden bölümleri ayıklar (mahkeme başlığı, davacı, davalı, konu, deliller vb.)
+- `dbmdz/bert-base-turkish-cased` ile:
+  - anlamsal dava türü tahmini
+  - anlamsal mahkeme türü tahmini
+  - yapay zeka destekli anahtar kelime çıkarımı (`top_keywords`)
+- Bilgi çıkarımı:
   - taraf sayısı
   - tanık sayısı
   - delil sayısı
-  - metin uzunluğu
-- Karmaşıklık puanı hesaplama
-- Öncelik puanı hesaplama
+  - metin uzunluğu (kelime)
+  - token sayısı (BERT tokenizer)
+- Karmaşıklık puanı
+- Öncelik puanı
 - Birden fazla davayı öncelik puanına göre sıralama
+
+## Gerekli dosyalar ve türleri
+
+- `case_analysis_prototype.py` → Python kaynak kodu (ana analiz modülü)
+- `requirements.txt` → Python bağımlılık listesi
+- Dava giriş dosyaları → `.txt` (UTF-8 önerilir)
+
+## Kurulum
+
+```bash
+pip install -r requirements.txt
+```
 
 ## Çalıştırma
 
@@ -22,19 +39,24 @@ Türkiye'deki dava dilekçelerini analiz etmek için geliştirilmiş araştırma
 python case_analysis_prototype.py
 ```
 
-Bu komut dosya içindeki örnek metinlerle:
+## Token kısmı (istenen)
 
-1. Tek dava analizi yapar
-2. Birden çok davayı öncelik puanına göre sıralar
+Kodda token işlemleri doğrudan BERT tokenizer ile yapılır:
 
-## Colab Kullanımı
+- `token_count`: metnin toplam BERT token adedi
+- demo çıktısında `input_ids` ve `attention_mask` tensor şekilleri yazdırılır
 
-Google Colab'da tek hücrede çalıştırmak için:
+Teknik olarak:
+- tokenizer: `AutoTokenizer.from_pretrained("dbmdz/bert-base-turkish-cased")`
+- model: `AutoModel.from_pretrained("dbmdz/bert-base-turkish-cased")`
+
+## Colab için hızlı kullanım
 
 ```python
+!pip install -r requirements.txt
 !python case_analysis_prototype.py
 ```
 
 ## Not
 
-Bu proje **akademik/araştırma amaçlı bir prototiptir**. Gerçek mahkeme süreçlerinde doğrudan kullanılmak üzere tasarlanmamıştır.
+Bu proje eğitim/araştırma amaçlıdır; gerçek yargısal karar sistemi değildir.
