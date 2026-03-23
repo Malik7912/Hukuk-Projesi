@@ -7,10 +7,11 @@ from pathlib import Path
 from typing import Dict, List
 
 from .classifier import BerturkCaseTypeClassifier
+from .complexity_model import BerturkComplexityRegressor
 from .information_extraction import extract_features
 from .io_utils import read_text_from_file
 from .preprocessing import clean_text, extract_sections
-from .scoring import compute_complexity_score, compute_priority_score
+from .scoring import compute_priority_score
 
 
 @dataclass
@@ -25,6 +26,7 @@ class CaseAnalysisResult:
     delil_sayisi: int
     metin_uzunlugu: int
     karmasiklik_puani: float
+    karmasiklik_modu: str
     oncelik_puani: float
     bolumler: Dict[str, str]
 
@@ -32,8 +34,13 @@ class CaseAnalysisResult:
 class CaseAnalysisPipeline:
     """Dava dosyalarını analiz eder ve öncelik sırasına göre sonuç döndürür."""
 
-    def __init__(self, classifier: BerturkCaseTypeClassifier | None = None) -> None:
+    def __init__(
+        self,
+        classifier: BerturkCaseTypeClassifier | None = None,
+        complexity_model: BerturkComplexityRegressor | None = None,
+    ) -> None:
         self.classifier = classifier or BerturkCaseTypeClassifier()
+        self.complexity_model = complexity_model or BerturkComplexityRegressor()
 
     def analyze_files(self, file_paths: List[str]) -> List[CaseAnalysisResult]:
         results = [self._analyze_single_file(file_path) for file_path in file_paths]
@@ -48,12 +55,8 @@ class CaseAnalysisPipeline:
         classification = self.classifier.predict(classification_input)
 
         features = extract_features(cleaned_text)
-        complexity = compute_complexity_score(
-            taraf_sayisi=int(features["taraf_sayisi"]),
-            tanik_sayisi=int(features["tanik_sayisi"]),
-            delil_sayisi=int(features["delil_sayisi"]),
-            metin_uzunlugu=int(features["metin_uzunlugu"]),
-        )
+        complexity_prediction = self.complexity_model.predict(cleaned_text, features=features)
+        complexity = float(complexity_prediction["complexity"])
         priority = compute_priority_score(
             case_type=str(classification["predicted_case_type"]),
             complexity=complexity,
@@ -71,6 +74,7 @@ class CaseAnalysisPipeline:
             delil_sayisi=int(features["delil_sayisi"]),
             metin_uzunlugu=int(features["metin_uzunlugu"]),
             karmasiklik_puani=complexity,
+            karmasiklik_modu=str(complexity_prediction.get("mode", "unknown")),
             oncelik_puani=priority,
             bolumler=sections,
         )

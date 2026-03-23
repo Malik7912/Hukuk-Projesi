@@ -6,10 +6,12 @@ import pandas as pd
 import gradio as gr
 
 from src.hukuk_ai.classifier import BerturkCaseTypeClassifier
+from src.hukuk_ai.complexity_model import BerturkComplexityRegressor
 from src.hukuk_ai.pipeline import CaseAnalysisPipeline
 
 pipeline: CaseAnalysisPipeline | None = None
 classifier: BerturkCaseTypeClassifier | None = None
+complexity_model: BerturkComplexityRegressor | None = None
 
 
 def _get_pipeline() -> CaseAnalysisPipeline:
@@ -24,6 +26,13 @@ def _get_classifier() -> BerturkCaseTypeClassifier:
     if classifier is None:
         classifier = BerturkCaseTypeClassifier()
     return classifier
+
+
+def _get_complexity_model() -> BerturkComplexityRegressor:
+    global complexity_model
+    if complexity_model is None:
+        complexity_model = BerturkComplexityRegressor()
+    return complexity_model
 
 
 def train_model(
@@ -50,7 +59,7 @@ def train_model(
     )
 
     global pipeline
-    pipeline = CaseAnalysisPipeline(classifier=cls)
+    pipeline = CaseAnalysisPipeline(classifier=cls, complexity_model=_get_complexity_model())
 
     return (
         "Model eğitimi tamamlandı.\n"
@@ -60,6 +69,34 @@ def train_model(
         f"- Epoch: {summary.epochs}\n"
         f"- Train loss: {summary.train_loss}\n"
         f"- Eval loss: {summary.eval_loss}"
+    )
+
+
+def train_complexity_model(
+    complexity_train_file,
+    text_column: str,
+    complexity_column: str,
+    ridge_alpha: float,
+) -> str:
+    if not complexity_train_file:
+        raise gr.Error("Lütfen karmaşıklık eğitimi için CSV dosyasını yükleyin.")
+
+    summary = _get_complexity_model().train_from_csv(
+        train_csv_path=complexity_train_file.name,
+        text_column=text_column,
+        complexity_column=complexity_column,
+        ridge_alpha=float(ridge_alpha),
+    )
+
+    global pipeline
+    pipeline = CaseAnalysisPipeline(classifier=_get_classifier(), complexity_model=_get_complexity_model())
+
+    return (
+        "Karmaşıklık modeli eğitimi tamamlandı.\n"
+        f"- Model klasörü: {summary.model_dir}\n"
+        f"- Eğitim örnek sayısı: {summary.train_samples}\n"
+        f"- Train MAE: {summary.train_mae}\n"
+        f"- Train RMSE: {summary.train_rmse}"
     )
 
 
@@ -94,6 +131,7 @@ def analyze_uploaded_files(files: list) -> tuple[pd.DataFrame, pd.DataFrame]:
                 "Tanık Sayısı": result.tanik_sayisi,
                 "Delil Sayısı": result.delil_sayisi,
                 "Karmaşıklık Puanı": result.karmasiklik_puani,
+                "Karmaşıklık Modu": result.karmasiklik_modu,
                 "Öncelik Puanı": result.oncelik_puani,
             }
         )
@@ -140,6 +178,20 @@ with gr.Blocks(title="BERTurk Dava Analiz Sistemi") as demo:
             fn=train_model,
             inputs=[train_file, validation_file, text_column, label_column, epochs, batch_size, learning_rate],
             outputs=[train_output],
+        )
+
+        gr.Markdown("### Karmaşıklık Modeli Eğitimi (Metin ➜ 0-100 Puan)")
+        complexity_train_file = gr.File(label="Karmaşıklık Eğitim CSV", file_types=[".csv"])
+        complexity_text_column = gr.Textbox(label="Metin Kolon Adı", value="text")
+        complexity_label_column = gr.Textbox(label="Karmaşıklık Kolon Adı", value="complexity")
+        complexity_alpha = gr.Number(label="Ridge Alpha", value=1.0)
+        complexity_train_button = gr.Button("Karmaşıklık Modelini Eğit")
+        complexity_train_output = gr.Textbox(label="Karmaşıklık Eğitim Durumu", lines=6)
+
+        complexity_train_button.click(
+            fn=train_complexity_model,
+            inputs=[complexity_train_file, complexity_text_column, complexity_label_column, complexity_alpha],
+            outputs=[complexity_train_output],
         )
 
     with gr.Tab("Test Menüsü"):
