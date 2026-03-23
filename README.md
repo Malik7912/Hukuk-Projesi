@@ -1,6 +1,6 @@
 # Hukuk-Projesi: BERTurk Eğitim + Test + Analiz Sistemi
 
-Bu proje, `dbmdz/bert-base-turkish-cased` modelini doğrudan Hugging Face üzerinden kullanarak **dava türü sınıflandırma modeli eğitimi**, **test menüsü ile doğrulama** ve **dilekçe analizi** sunan araştırma amaçlı bir prototiptir.
+Bu proje, `dbmdz/bert-base-turkish-cased` modelini doğrudan Hugging Face üzerinden kullanarak **dava türü sınıflandırma modeli eğitimi**, **metinden öğrenen karmaşıklık modeli eğitimi**, **test menüsü ile doğrulama** ve **dilekçe analizi** sunan araştırma amaçlı bir prototiptir.
 
 ## Arayüz Akışı
 
@@ -20,6 +20,7 @@ Gradio arayüzü üç sekmeden oluşur:
 3. **Dilekçe Analizi**
    - `.txt`, `.pdf`, `.docx` dava dosyaları yüklenir.
    - Dava türü, taraf/tanık/delil, karmaşıklık ve öncelik puanı üretilir.
+   - Karmaşıklık modeli eğitildiyse `learned_regression`, eğitilmediyse `heuristic_fallback` modu kullanılır.
 
 ## CSV Formatı
 
@@ -27,6 +28,12 @@ Eğitim ve test için CSV dosyaları en az şu kolonları içermelidir:
 
 - `text`: Dava metni
 - `label`: Dava türü etiketi (ör: `iş davası`, `kira davası`)
+
+
+Karmaşıklık modeli eğitimi için ek CSV kolonları:
+
+- `text`: Dava metni
+- `complexity`: 0-100 arası hedef karmaşıklık puanı
 
 ## Kurulum
 
